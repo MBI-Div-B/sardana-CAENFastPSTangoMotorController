@@ -1,9 +1,9 @@
-from tango import DeviceProxy
-
 from sardana import State
 from sardana.pool.controller import MotorController
 from sardana.pool.controller import Type, Description, DefaultValue
 
+from tango import DeviceProxy
+import time
 
 class CAENFastPSTangoMotorController(MotorController):
     ctrl_properties = {'tangoFQDN': {Type: str,
@@ -17,53 +17,51 @@ class CAENFastPSTangoMotorController(MotorController):
         super(MotorController, self).__init__(
             inst, props, *args, **kwargs)
 
-        print('PI-MTE Tango Initialization ...')
+        print('CAEN FastPS Initialization ...')
         self.proxy = DeviceProxy(self.tangoFQDN)
         print('SUCCESS')
-
-        # initialize hardware communication        
-        self._motors = {}
-        self._isMoving = None
-        self._moveStartTime = None
-        self._threshold = 0.0001
-        self._target = None
         self._timeout = 10
+        self._threshold = 0.0001
+        self._motors = []
         
     def AddDevice(self, axis):
-        self._motors[axis] = True
+        self._motors.append({})
+        self._motors[axis]['is_moving'] = None
+        self._motors[axis]['move_start_time'] = None
+        self._motors[axis]['target'] = None
 
     def DeleteDevice(self, axis):
         del self._motors[axis]
 
     def StateOne(self, axis):
         limit_switches = MotorController.NoLimitSwitch
-        # pos = self.ReadOne(axis)
-        # now = time.time()
         
-        # try:
-        #     if self._isMoving == False:
-        #         state = State.On
-        #     elif self._isMoving & (abs(pos-self._target) > self._threshold): 
-        #         # moving and not in threshold window
-        #         if (now-self._moveStartTime) < self._timeout:
-        #             # before timeout
-        #             state = State.Moving
-        #         else:
-        #             # after timeout
-        #             self._log.warning('CAEN FAST-PS Timeout')
-        #             self._isMoving = False
-        #             state = State.On
-        #     elif self._isMoving & (abs(pos-self._target) <= self._threshold): 
-        #         # moving and within threshold window
-        #         self._isMoving = False
-        #         state = State.On
-        #         #print('Kepco Tagret: %f Kepco Current Pos: %f' % (self._target, pos))
-        #     else:
-        #         state = State.Fault
-        # except:
-        #     state = State.Fault
+        pos = self.ReadOne(axis)
+        now = time.time()
         
-        return State.On, 'all fine', limit_switches
+        try:
+            if self._motors[axis]['is_moving'] == False:
+                state = State.On
+            elif self._motors[axis]['is_moving'] & (abs(pos-self._motors[axis]['target']) > self._threshold): 
+                # moving and not in threshold window
+                if (now-self._motors[axis]['move_start_time']) < self._timeout:
+                    # before timeout
+                    state = State.Moving
+                else:
+                    # after timeout
+                    self._log.warning('CAEN FAST-PS Timeout')
+                    self._motors[axis]['is_moving'] = False
+                    state = State.On
+            elif self._motors[axis]['is_moving'] & (abs(pos-self._motors[axis]['target']) <= self._threshold): 
+                # moving and within threshold window
+                self._motors[axis]['is_moving'] = False
+                state = State.On
+            else:
+                state = State.Fault
+        except:
+            state = State.Fault
+        
+        return state, 'all fine', limit_switches
 
     def ReadOne(self, axis):
         if axis == 0:
@@ -73,9 +71,12 @@ class CAENFastPSTangoMotorController(MotorController):
 
     def StartOne(self, axis, position):
         if axis == 0:
-            self.proxy.current = positon
+            self.proxy.current = position
         else:
-            self.proxy.voltage = positon
+            self.proxy.voltage = position
+        self._motors[axis]['move_start_time'] = time.time()
+        self._motors[axis]['is_moving'] = True
+        self._motors[axis]['target'] = position
 
     def StopOne(self, axis):
         pass
@@ -92,15 +93,14 @@ class CAENFastPSTangoMotorController(MotorController):
         :param cmd: string
         :return: string (MANDATORY to avoid OMNI ORB exception)
         """
-        # # Get the process to send
-        # mode = cmd.split(' ')[0].lower()
-        # #args = cmd.strip().split(' ')[1:]
+        # Get the process to send
+        mode = cmd.split(' ')[0].lower()
 
-        # if mode == 'moff':
-        #     self.__sendAndReceive('MOFF')
-        # elif mode == 'mon':
-        #     self.__sendAndReceive('MON')
-        # else:
-        #     self._log.warning('Invalid command')
-        #     return 'ERROR: Invalid command requested.'
+        if mode == 'enable':
+            self.proxy.enable()
+        elif mode == 'disable':
+            self.proxy.disable()
+        else:
+            self._log.warning('Invalid command')
+            return 'ERROR: Invalid command requested.'
         pass
