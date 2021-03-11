@@ -1,2 +1,2 @@
-# sardana-CaenFastPSMotorController
-Sardana MotorController for CAEN FastPS power supplies
+# sardana-CAENFastPSTangoMotorController
+Sardana Tango MotorController for CAEN FastPS power supplies
