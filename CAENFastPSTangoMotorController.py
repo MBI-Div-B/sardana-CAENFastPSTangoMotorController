@@ -22,10 +22,10 @@ class CAENFastPSTangoMotorController(MotorController):
         print('SUCCESS')
         self._timeout = 10
         self._threshold = 0.0001
-        self._motors = []
+        self._motors = {}
         
     def AddDevice(self, axis):
-        self._motors.append({})
+        self._motors[axis] = {}
         self._motors[axis]['is_moving'] = None
         self._motors[axis]['move_start_time'] = None
         self._motors[axis]['target'] = None
