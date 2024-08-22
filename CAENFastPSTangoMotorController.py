@@ -26,9 +26,9 @@ class CAENFastPSTangoMotorController(MotorController):
         
     def AddDevice(self, axis):
         self._motors[axis] = {}
-        self._motors[axis]['is_moving'] = None
-        self._motors[axis]['move_start_time'] = None
-        self._motors[axis]['target'] = None
+        self._motors[axis]['is_moving'] = False
+        self._motors[axis]['move_start_time'] = 0
+        self._motors[axis]['target'] = self.proxy.current if axis == 0 else self.proxy.voltage
 
     def DeleteDevice(self, axis):
         del self._motors[axis]
